@@ -1,42 +1,46 @@
+#include "proto_structures.h"
+#include "local_address.h"
 #include <pcap.h>
-#include <queue>
+#include <string>
 #include <iostream>
-#include <thread>
-#include <mutex>
-#include <semaphore> //c++20 required
-
-struct multiqueue:public std::queue<std::string>{
-	std::counting_semaphore<1024> sem;
-	std::mutex ex;
-	multiqueue():std::queue<std::string>(),sem(0),ex(){}
-	void push(const std::string& x){
-		ex.lock();
-		std::queue<std::string>::push(x);
-		if(size()>=1024){
-			std::cout<<"queue overflow"<<std::endl;
-			exit(1);
-		}
-		ex.unlock();
-		sem.release();
-	}
-	std::string pop(){
-		sem.acquire();
-		ex.lock();
-		std::string res=front();
-		std::queue<std::string>::pop();
-		ex.unlock();
-		return res;
-	}
-} Q;
-
-void https_check(const unsigned char* data){ // get tcp content
+pcap_t* handle;
+std::string forbidden;
+void tcp_rst(const unsigned char* packet){
+	
 }
 
-void http_check(const unsigned char* data){ // get tcp content
+bool https_check(const unsigned char* data){ // get tcp content
 }
 
-void fast_check(const unsigned char* packet){ // get ip packet
+bool http_check(const unsigned char* data){ // get tcp content
+}
+
+void tcp_check(const unsigned char* packet){ // get ip packet
 }
 
 int main(int c, char** v){
+	if(c!=3){
+		std::cout<<"u : tcp-block <interface> <pattern>"<<std::endl;
+		return 1;
+	}
+	forbidden=v[2];
+	mac_addr my_mac=get_mac_addr(v[1]);
+	char errbuf[PCAP_ERRBUF_SIZE];
+	handle=pcap_open_live(v[1],BUFSIZ,1,1,errbuf);
+	if(handle==nullptr){
+		std::cout<<"pcap error : "<<errbuf<<std::endl;
+		exit(1);
+	}
+	for(;;){
+		pcap_pkthdr* hdr;
+		const uint8_t* ptr;
+		if(!pcap_next_ex(handle,&hdr,&ptr)){
+			printf("pcap listing failed\n");
+			exit(1);
+		}
+		if(!memcmp(&((ethernet_packet*)ptr)->src,&my_mac,6))
+			continue;
+		if(((tcp_ipv4_eth*)ptr)->is_valid())
+			tcp_check(ptr);
+	}
 }
