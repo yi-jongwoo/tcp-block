@@ -9,13 +9,19 @@ void tcp_rst(const unsigned char* packet){
 	
 }
 
-bool https_check(const unsigned char* data){ // get tcp content
+bool https_check(const unsigned char* data,int len){ // get tcp content
 }
 
-bool http_check(const unsigned char* data){ // get tcp content
+bool http_check(const unsigned char* data,int len){ // get tcp content
 }
 
-void tcp_check(const unsigned char* packet){ // get ip packet
+void tcp_check(tcp_ipv4_eth* packet){ // get ip packet
+	int iplen=packet->len;
+	auto head=packet->get_tcp();
+	if(head->tport==80){
+	}
+	else if(1){
+	}
 }
 
 int main(int c, char** v){
@@ -41,6 +47,6 @@ int main(int c, char** v){
 		if(!memcmp(&((ethernet_packet*)ptr)->src,&my_mac,6))
 			continue;
 		if(((tcp_ipv4_eth*)ptr)->is_valid())
-			tcp_check(ptr);
+			tcp_check((tcp_ipv4_eth*)ptr);
 	}
 }

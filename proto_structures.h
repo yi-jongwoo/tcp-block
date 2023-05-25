@@ -16,6 +16,7 @@ union __attribute__((packed)) tcp_port{
 	uint16_t word;
 	tcp_port(){}
 	tcp_port(uint16_t x);
+	operator uint16_t() const;
 };
 
 union __attribute__((packed)) ipv4_addr{
@@ -28,7 +29,10 @@ union __attribute__((packed)) ipv4_addr{
 	ipv4_addr(const std::string& x);
 	ipv4_addr(const char *x);
 	operator std::string() const;
+	operator uint32_t() const;
 };
+typedef tcp_port nint16_t;
+typedef ipv4_addr nint32_t;
 
 struct __attribute__((packed)) mac_addr{
 	static constexpr int siz=6;
@@ -43,38 +47,39 @@ struct __attribute__((packed)) mac_addr{
 struct __attribute__((packed)) ethernet_packet{
 	mac_addr dst;
 	mac_addr src;
-	uint16_t ethtype;
+	nint16_t ethtype;
 	ethernet_packet(){}
 	ethernet_packet(const mac_addr& src);
 	ethernet_packet(const mac_addr& src,const mac_addr& dst):src(src),dst(dst){}
 	operator const uint8_t*() const;
 };
 
-struct __attribute__((packed)) arp_eth_ipv4:public ethernet_packet{
-	uint16_t l2type;
-	uint16_t l3type;
-	uint8_t l2addr_siz;
-	uint8_t l3addr_siz;
-	uint16_t arptype;
-	mac_addr smac;
-	ipv4_addr sip;
-	mac_addr dmac;
-	ipv4_addr tip;
-	arp_eth_ipv4();
-	arp_eth_ipv4(const mac_addr& src,const ipv4_addr& sip,const ipv4_addr& tip); // request
-	arp_eth_ipv4(const mac_addr& src,const mac_addr& dst,const ipv4_addr& sip,const ipv4_addr& tip); // reply
-	bool is_valid() const;
-};
 struct __attribute__((packed)) ipv4_eth:public ethernet_packet{
-	ignore_bytes(2);
-	uint16_t len;
+	uint8_t v_hs;
+	ignore_bytes(1);
+	nint16_t len;
 	ignore_bytes(5);
 	uint8_t protocall;
-	ignore_bytes(2);
+	nint16_t checksum;
 	ipv4_addr sip;
 	ipv4_addr tip;
 	bool is_valid() const;
 };
 struct __attribute__((packed)) tcp_ipv4_eth:public ipv4_eth{
+	uint8_t data[0];
+	struct __attribute__((packed)) tcp{
+		tcp_port sport;
+		tcp_port tport;
+		nint32_t seq;
+		nint32_t ack;
+		uint8_t hs_0;
+		uint8_t flags;
+		ignore_bytes(2);
+		nint16_t checksum;
+		ignore_bytes(2);
+		uint8_t data[0];
+	};
 	bool is_valid() const;
+	tcp* get_tcp() const;
+	uint8_t* get_content() const;
 };

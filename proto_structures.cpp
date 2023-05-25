@@ -2,6 +2,9 @@
 tcp_port::tcp_port(uint16_t x){
 	word=htons(x);
 }
+tcp_port::operator uint16_t() const{
+	return htons(word);
+}
 ipv4_addr::ipv4_addr(uint32_t x){
 	word=htonl(x);
 }
@@ -30,7 +33,9 @@ ipv4_addr::operator std::string() const{
 	}
 	return ss.str();
 }
-
+ipv4_addr::operator uint32_t() const{
+	return htonl(word);
+}
 mac_addr::mac_addr(const std::string& x){
 	std::istringstream ss(x);ss>>std::hex;
 	char _;
@@ -69,31 +74,16 @@ ethernet_packet::ethernet_packet(const mac_addr& src):src(src){
 ethernet_packet::operator const uint8_t*() const{
 	return (uint8_t*)this;
 }
-
-arp_eth_ipv4::arp_eth_ipv4():l2addr_siz(mac_addr::siz),l3addr_siz(ipv4_addr::siz){
-	ethtype=htons(0x0806);
-	l2type=htons(0x0001);
-	l3type=htons(0x0800);
-}
-arp_eth_ipv4::arp_eth_ipv4(const mac_addr& src,const ipv4_addr& sip,const ipv4_addr& tip):ethernet_packet(src),l2addr_siz(mac_addr::siz),l3addr_siz(ipv4_addr::siz),smac(src),sip(sip),tip(tip){
-	ethtype=htons(0x0806);
-	l2type=htons(0x0001);
-	l3type=htons(0x0800);
-	arptype=htons(0x0001);
-	memset(&dmac,0,sizeof dmac);
-}
-arp_eth_ipv4::arp_eth_ipv4(const mac_addr& src,const mac_addr& dst,const ipv4_addr& sip,const ipv4_addr& tip):ethernet_packet(src,dst),l2addr_siz(mac_addr::siz),l3addr_siz(ipv4_addr::siz),smac(src),dmac(dst),sip(sip),tip(tip){
-	ethtype=htons(0x0806);
-	l2type=htons(0x0001);
-	l3type=htons(0x0800);
-	arptype=htons(0x0002);
-}
-bool arp_eth_ipv4::is_valid() const{
-	return ethtype==htons(0x0806) && l3type==htons(0x0800);
-}
 bool ipv4_eth::is_valid() const{
-	return ethtype==htons(0x0800);
+	return ethtype==0x0800;
 }
 bool tcp_ipv4_eth::is_valid() const{
 	return ipv4_eth::is_valid()&&protocall==0x06;
+}
+tcp_ipv4_eth::tcp* tcp_ipv4_eth::get_tcp() const{
+	return (tcp*)(data+((v_hs&0xf)<<2));
+}
+uint8_t* tcp_ipv4_eth::get_content() const{
+	tcp* head=get_tcp();
+	return head->data+((head->hs_0>>4)<<2);
 }
