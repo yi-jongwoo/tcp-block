@@ -3,25 +3,49 @@
 #include <pcap.h>
 #include <string>
 #include <iostream>
+#include <cstdlib>
+#include <algorithm>
 pcap_t* handle;
 std::string forbidden;
-void tcp_rst(const unsigned char* packet){
+void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag=1: rst flag=2: fin
+	tcp_ipv4_eth forward=packet;
+	auto fortcp=forward.get_tcp();
+	fortcp->seq=fortcp->seq+datalen;
+	fortcp->flags=0x14; // ack rst
+	forward.len=(uint8_t*)fortcp-forward+sizeof*fortcp;
+	forward.validate();
+	
+	tcp_ipv4_eth backward=forward;
+	auto backtcp=backward.get_tcp();
+	std::swap(backward.src,backward.dst);
+	std::swap(backward.sip,backward.tip);
+	std::swap(backtcp->sport,backtcp->tport);
+	std::swap(backtcp->seq,backtcp->ack);
+	backward.ttl=64+rand()%64;
+	backward.validate();
+}
+
+bool https_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
 	
 }
 
-bool https_check(const unsigned char* data,int len){ // get tcp content
+bool http_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
+	
 }
 
-bool http_check(const unsigned char* data,int len){ // get tcp content
-}
-
-void tcp_check(tcp_ipv4_eth* packet){ // get ip packet
-	int iplen=packet->len;
-	auto head=packet->get_tcp();
-	if(head->tport==80){
+void tcp_check(const tcp_ipv4_eth& packet){
+	int iplen=packet.len+sizeof(ethernet_packet);
+	int flag=0;
+	switch(packet.get_tcp()->tport){
+	case 80:
+		flag=http_check(packet.get_content(),packet+iplen)<<1;
+		break;
+	case 443:
+		flag=https_check(packet.get_content(),packet+iplen);
+		break;
 	}
-	else if(1){
-	}
+	if(flag)
+		send_tcp_rst(packet,packet+iplen-packet.get_content(),flag);
 }
 
 int main(int c, char** v){
@@ -47,6 +71,6 @@ int main(int c, char** v){
 		if(!memcmp(&((ethernet_packet*)ptr)->src,&my_mac,6))
 			continue;
 		if(((tcp_ipv4_eth*)ptr)->is_valid())
-			tcp_check((tcp_ipv4_eth*)ptr);
+			tcp_check(*(tcp_ipv4_eth*)ptr);
 	}
 }

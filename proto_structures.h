@@ -58,12 +58,14 @@ struct __attribute__((packed)) ipv4_eth:public ethernet_packet{
 	uint8_t v_hs;
 	ignore_bytes(1);
 	nint16_t len;
-	ignore_bytes(5);
+	ignore_bytes(4);
+	uint8_t ttl;
 	uint8_t protocall;
 	nint16_t checksum;
 	ipv4_addr sip;
 	ipv4_addr tip;
 	bool is_valid() const;
+	void validate();
 };
 struct __attribute__((packed)) tcp_ipv4_eth:public ipv4_eth{
 	uint8_t data[0];
@@ -82,4 +84,5 @@ struct __attribute__((packed)) tcp_ipv4_eth:public ipv4_eth{
 	bool is_valid() const;
 	tcp* get_tcp() const;
 	uint8_t* get_content() const;
+	void validate();
 };

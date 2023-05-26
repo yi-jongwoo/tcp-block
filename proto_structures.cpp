@@ -77,6 +77,19 @@ ethernet_packet::operator const uint8_t*() const{
 bool ipv4_eth::is_valid() const{
 	return ethtype==0x0800;
 }
+void ipv4_eth::validate(){
+	nint16_t* ip=(nint16_t*)(*this+sizeof(ethernet_packet));
+	int wlen=len>>1;
+	checksum=0;
+	uint32_t num;
+	for(int i=0;i<wlen;i++)
+		num+=ip[i];
+	if(len&1)
+		num+=(uint32_t)(len-1)[(uint8_t*)ip]<<8;
+	num=(num&0xffff)+(num>>16);
+	num=(num&0xffff)+(num>>16);
+	checksum=~(uint16_t)num;
+}
 bool tcp_ipv4_eth::is_valid() const{
 	return ipv4_eth::is_valid()&&protocall==0x06;
 }
@@ -86,4 +99,8 @@ tcp_ipv4_eth::tcp* tcp_ipv4_eth::get_tcp() const{
 uint8_t* tcp_ipv4_eth::get_content() const{
 	tcp* head=get_tcp();
 	return head->data+((head->hs_0>>4)<<2);
+}
+void tcp_ipv4_eth::validate(){
+	
+	ipv4_eth::validate();
 }
