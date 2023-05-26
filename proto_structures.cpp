@@ -94,11 +94,11 @@ bool tcp_ipv4_eth::is_valid() const{
 	return ipv4_eth::is_valid()&&protocall==0x06;
 }
 tcp_ipv4_eth::tcp* tcp_ipv4_eth::get_tcp() const{
-	return (tcp*)(data+((v_hs&0xf)<<2));
+	return (tcp*)(data-20+((v_hs&0xf)<<2));
 }
 uint8_t* tcp_ipv4_eth::get_content() const{
 	tcp* head=get_tcp();
-	return head->data+((head->hs_0>>4)<<2);
+	return head->data-20+((head->hs_0>>4)<<2);
 }
 void tcp_ipv4_eth::validate(){
 	
