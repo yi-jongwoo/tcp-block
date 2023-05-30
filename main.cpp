@@ -11,10 +11,11 @@
 #include <netpacket/packet.h>
 #include <sys/ioctl.h>
 pcap_t* handle;
-std::string forbidden;
-char redirection[]="HTTP/1.0 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
+std::string forbidden,interf;
+char redirection[]="HTTP/1.1 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
 mac_addr my_mac;
 void send_raw_eth(const uint8_t* data,int len){
+	uint8_t* tmp=(uint8_t*)malloc(len); memcpy(tmp,data,len);
 	int sd = socket(AF_PACKET, SOCK_RAW, 0xbbf1);
 	if(sd==-1){
 		std::cout<<"raw socket fail"<<std::endl;
@@ -22,7 +23,7 @@ void send_raw_eth(const uint8_t* data,int len){
 		exit(1);
 	}
 	ifreq ifr;
-	ifr.ifr_name;//<- eth0
+	strcpy(ifr.ifr_name,interf.c_str());
 	ioctl(sd, SIOCGIFINDEX, &ifr);
 	
 	sockaddr_ll addr;
@@ -31,16 +32,16 @@ void send_raw_eth(const uint8_t* data,int len){
         addr.sll_protocol = 0xbbf1;
         addr.sll_ifindex = ifr.ifr_ifindex; 
         bind(sd, (struct sockaddr *)(&addr), sizeof addr);
-}
-void send_raw_ip(const uint8_t* data,int len){
-	int sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-	if(sd==-1||send(sd, data, len, 0)==-1){
-		std::cout<<"raw socket fail"<<std::endl;
+        
+        ((ethernet_packet*)tmp)->src=my_mac;
+        
+        if(send(sd, tmp, len, 0)==-1){
+		std::cout<<"raw socket send fail"<<std::endl;
 		perror("");
 		exit(1);
 	}
-	close(sd);
-	std::cout<<"raw socket success"<<std::endl;
+        
+        free(tmp);
 }
 void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag=1: rst flag=2: fin
 	std::cout<<"; forbidden host detected"<<std::endl;
@@ -56,26 +57,32 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 	fortcp->flags=0x14; // ack rst
 	forward.validate();
 	//pcap_sendpacket(handle,forward,sizeof _forward);
-	send_raw_ip(_forward+sizeof(ethernet_packet),40);
+	//send_raw_ip(_forward+sizeof(ethernet_packet),40);
+	send_raw_eth(_forward,40+sizeof(ethernet_packet));
 	
 	uint8_t _backward[20+sizeof packet+sizeof redirection];
 	memcpy(_backward,_forward,sizeof _forward);
-	tcp_ipv4_eth backward=*(tcp_ipv4_eth*)_backward;
+	tcp_ipv4_eth &backward=*(tcp_ipv4_eth*)_backward;
+	auto backtcp=backward.get_tcp();
 	if(flag==2){
 		memcpy(_backward+sizeof _forward,redirection,sizeof redirection);
 		backward.len=40+sizeof redirection;
+		backtcp->flags=0x11;
 	}
-	auto backtcp=backward.get_tcp();
 	std::swap(backward.src,backward.dst);
+	
 	std::swap(backward.sip,backward.tip);
+	
 	std::swap(backtcp->sport,backtcp->tport);
 	std::swap(backtcp->seq,backtcp->ack);
 	backward.ttl=64+rand()%64;
 	
 	backward.validate();
 	//pcap_sendpacket(handle,backward,sizeof _forward+(flag-1)*sizeof redirection);
-	send_raw_ip(_backward+sizeof(ethernet_packet),40+(flag-1)*sizeof redirection);
-	
+	//send_raw_ip(_backward+sizeof(ethernet_packet),40+(flag-1)*sizeof redirection);
+	send_raw_eth(_backward,40+sizeof(ethernet_packet)+(flag-1)*sizeof redirection);
+	//std::cout<<"ip "<<forward.sip<<' '<<forward.tip<<std::endl;
+	//std::cout<<"ip "<<backward.sip<<' '<<backward.tip<<std::endl;
 	std::cout<<'!'<<forward.len<<std::endl;
 }
 
@@ -126,6 +133,7 @@ int main(int c, char** v){
 	}
 	forbidden=v[2];
 	my_mac=get_mac_addr(v[1]);
+	interf=v[1];
 	char errbuf[PCAP_ERRBUF_SIZE];
 	handle=pcap_open_live(v[1],BUFSIZ,1,1,errbuf);
 	if(handle==nullptr){
