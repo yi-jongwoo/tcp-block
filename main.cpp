@@ -88,7 +88,7 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 
 bool https_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
 	std::cout<<"; https detected"<<std::endl;
-	return false;
+	return ~std::string(begin,end).find(forbidden);
 }
 
 bool http_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
