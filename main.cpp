@@ -14,7 +14,26 @@ pcap_t* handle;
 std::string forbidden,interf;
 char redirection[]="HTTP/1.1 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
 mac_addr my_mac;
+void send_raw(const tcp_ipv4_eth* data){
+	int sd=socket(AF_INET,SOCK_RAW,IPPROTO_RAW);
+	{
+		int on=1;
+		setsockopt(sd,IPPROTO_IP, IP_HDRINCL, &on, sizeof(on));
+	}
+	sockaddr_in dest;
+	dest.sin_family = AF_INET;
+	dest.sin_port = data->get_tcp()->tport;
+	dest.sin_addr.s_addr = data->tip;
+	
+	if(!~sendto(sd,*data+sizeof(ethernet_packet),data->len,0,(sockaddr*)&dest,sizeof dest)){
+		std::cout<<"raw socket send fail"<<std::endl;
+		perror("");
+		exit(1);
+	}
+	
+}
 void send_raw_eth(const uint8_t* data,int len){
+	send_raw((const tcp_ipv4_eth*)data);
 	uint8_t* tmp=(uint8_t*)malloc(len); memcpy(tmp,data,len);
 	int sd = socket(AF_PACKET, SOCK_RAW, 0xbbf1);
 	if(sd==-1){
