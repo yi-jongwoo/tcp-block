@@ -12,7 +12,7 @@
 #include <sys/ioctl.h>
 pcap_t* handle;
 std::string forbidden,interf;
-char redirection[]="HTTP/1.1 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
+char redirection[]="HTTP/1.0 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
 mac_addr my_mac;
 void send_raw(const tcp_ipv4_eth* data){
 	int sd=socket(AF_INET,SOCK_RAW,IPPROTO_RAW);
@@ -30,10 +30,11 @@ void send_raw(const tcp_ipv4_eth* data){
 		perror("");
 		exit(1);
 	}
-	
+	close(sd);
 }
 void send_raw_eth(const uint8_t* data,int len){
 	send_raw((const tcp_ipv4_eth*)data);
+	/*
 	uint8_t* tmp=(uint8_t*)malloc(len); memcpy(tmp,data,len);
 	int sd = socket(AF_PACKET, SOCK_RAW, 0xbbf1);
 	if(sd==-1){
@@ -61,6 +62,7 @@ void send_raw_eth(const uint8_t* data,int len){
 	}
         
         free(tmp);
+        */
 }
 void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag=1: rst flag=2: fin
 	std::cout<<"; forbidden host detected"<<std::endl;
@@ -85,7 +87,7 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 	auto backtcp=backward.get_tcp();
 	if(flag==2){
 		memcpy(_backward+sizeof _forward,redirection,sizeof redirection);
-		backward.len=40+sizeof redirection;
+		backward.len=40+strlen(redirection);
 		backtcp->flags=0x11;
 	}
 	std::swap(backward.src,backward.dst);
@@ -99,10 +101,7 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 	backward.validate();
 	//pcap_sendpacket(handle,backward,sizeof _forward+(flag-1)*sizeof redirection);
 	//send_raw_ip(_backward+sizeof(ethernet_packet),40+(flag-1)*sizeof redirection);
-	send_raw_eth(_backward,40+sizeof(ethernet_packet)+(flag-1)*sizeof redirection);
-	//std::cout<<"ip "<<forward.sip<<' '<<forward.tip<<std::endl;
-	//std::cout<<"ip "<<backward.sip<<' '<<backward.tip<<std::endl;
-	std::cout<<'!'<<forward.len<<std::endl;
+	send_raw_eth(_backward,40+sizeof(ethernet_packet)+(flag-1)*strlen(redirection));
 }
 
 bool https_check(const uint8_t* begin,const uint8_t* end){ // get tcp content

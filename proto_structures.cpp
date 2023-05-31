@@ -79,7 +79,7 @@ bool ipv4_eth::is_valid() const{
 }
 void ipv4_eth::validate(){
 	nint16_t* ip=(nint16_t*)(*this+sizeof(ethernet_packet));
-	int wlen=10;
+	int wlen=((v_hs&0xf)<<2)>>1;
 	checksum=0;
 	uint32_t num=0;
 	for(int i=0;i<wlen;i++)
@@ -112,7 +112,7 @@ void tcp_ipv4_eth::validate(){
 	int wlen=len>>1;
 	int wbeg=((v_hs&0xf)<<2)>>1;
 	for(int i=wbeg;i<wlen;i++){
-		num+=ip[i];std::cout<<'?'<<std::hex<<ip[i]<<'?'<<std::endl;
+		num+=ip[i];//std::cout<<'?'<<std::hex<<ip[i]<<'?'<<std::endl;
 	}
 	if(len&1)
 		num+=(uint32_t)(len-1)[(uint8_t*)ip]<<8;
