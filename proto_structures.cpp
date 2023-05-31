@@ -84,8 +84,8 @@ void ipv4_eth::validate(){
 	uint32_t num=0;
 	for(int i=0;i<wlen;i++)
 		num+=ip[i];
-	if(len&1)
-		num+=(uint32_t)(len-1)[(uint8_t*)ip]<<8;
+	//if(len&1)
+	//	num+=(uint32_t)(len-1)[(uint8_t*)ip]<<8;
 	while(num>>16)
 		num=(num&0xffff)+(num>>16);
 	checksum=~(uint16_t)num;

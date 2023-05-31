@@ -12,14 +12,15 @@
 #include <sys/ioctl.h>
 pcap_t* handle;
 std::string forbidden,interf;
-char redirection[]="HTTP/1.0 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
+char redirection[]="HTTP/1.1 302 Redirect\r\nLocation: http://warning.or.kr\r\n\r\n";
 mac_addr my_mac;
+mac_addr gateway_mac;
 void send_raw(const tcp_ipv4_eth* data){
 	int sd=socket(AF_INET,SOCK_RAW,IPPROTO_RAW);
-	{
+	
 		int on=1;
 		setsockopt(sd,IPPROTO_IP, IP_HDRINCL, &on, sizeof(on));
-	}
+	
 	sockaddr_in dest;
 	dest.sin_family = AF_INET;
 	dest.sin_port = data->get_tcp()->tport;
@@ -30,6 +31,12 @@ void send_raw(const tcp_ipv4_eth* data){
 		perror("");
 		exit(1);
 	}
+	struct sockaddr_in loopbackAddr;
+	loopbackAddr.sin_family = AF_INET;
+	loopbackAddr.sin_addr.s_addr = inet_addr("127.0.0.1");    
+	bind(sd, (struct sockaddr*)&loopbackAddr, sizeof(loopbackAddr));
+	dest.sin_addr.s_addr = inet_addr("127.0.0.1");
+	sendto(sd,*data+sizeof(ethernet_packet),data->len,0,(sockaddr*)&dest,sizeof dest);
 	close(sd);
 }
 void send_raw_eth(const uint8_t* data,int len){
@@ -54,6 +61,14 @@ void send_raw_eth(const uint8_t* data,int len){
         bind(sd, (struct sockaddr *)(&addr), sizeof addr);
         
         ((ethernet_packet*)tmp)->src=my_mac;
+        /*
+        if(send(sd, tmp, len, 0)==-1){
+		std::cout<<"raw socket send fail"<<std::endl;
+		perror("");
+		exit(1);
+	}
+	
+	((ethernet_packet*)tmp)->dst=gateway_mac;
         
         if(send(sd, tmp, len, 0)==-1){
 		std::cout<<"raw socket send fail"<<std::endl;
@@ -79,7 +94,8 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 	forward.validate();
 	//pcap_sendpacket(handle,forward,sizeof _forward);
 	//send_raw_ip(_forward+sizeof(ethernet_packet),40);
-	send_raw_eth(_forward,40+sizeof(ethernet_packet));   fortcp->seq=fortcp->seq+datalen;
+	send_raw_eth(_forward,40+sizeof(ethernet_packet));   
+	fortcp->seq=fortcp->seq+datalen;
 	
 	uint8_t _backward[20+sizeof packet+sizeof redirection];
 	memcpy(_backward,_forward,sizeof _forward);
@@ -96,11 +112,14 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 	
 	std::swap(backtcp->sport,backtcp->tport);
 	std::swap(backtcp->seq,backtcp->ack);
-	backward.ttl=64+rand()%64;
-	
+	backward.ttl=128;
+	//backward.tip=0x7f000001;
 	backward.validate();
-	//pcap_sendpacket(handle,backward,sizeof _forward+(flag-1)*sizeof redirection);
+	//backward.src=my_mac;
+	//backward.dst=gateway_mac;
+	//pcap_sendpacket(handle,backward,sizeof _forward+(flag-1)*strlen(redirection));
 	//send_raw_ip(_backward+sizeof(ethernet_packet),40+(flag-1)*sizeof redirection);
+	
 	send_raw_eth(_backward,40+sizeof(ethernet_packet)+(flag-1)*strlen(redirection));
 }
 
@@ -151,6 +170,7 @@ int main(int c, char** v){
 	}
 	forbidden=v[2];
 	my_mac=get_mac_addr(v[1]);
+	gateway_mac=get_gateway_mac(v[1]);
 	interf=v[1];
 	char errbuf[PCAP_ERRBUF_SIZE];
 	handle=pcap_open_live(v[1],BUFSIZ,1,1,errbuf);

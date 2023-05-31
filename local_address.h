@@ -10,3 +10,4 @@
 #include <stdlib.h>
 #include "proto_structures.h"
 mac_addr get_mac_addr(const char *dev);
+mac_addr get_gateway_mac(const char *dev);
