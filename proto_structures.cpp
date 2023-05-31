@@ -79,15 +79,15 @@ bool ipv4_eth::is_valid() const{
 }
 void ipv4_eth::validate(){
 	nint16_t* ip=(nint16_t*)(*this+sizeof(ethernet_packet));
-	int wlen=len>>1;
+	int wlen=10;
 	checksum=0;
 	uint32_t num=0;
 	for(int i=0;i<wlen;i++)
 		num+=ip[i];
 	if(len&1)
 		num+=(uint32_t)(len-1)[(uint8_t*)ip]<<8;
-	num=(num&0xffff)+(num>>16);
-	num=(num&0xffff)+(num>>16);
+	while(num>>16)
+		num=(num&0xffff)+(num>>16);
 	checksum=~(uint16_t)num;
 }
 bool tcp_ipv4_eth::is_valid() const{
@@ -105,18 +105,19 @@ void tcp_ipv4_eth::validate(){
 	tcp* head=get_tcp();
 	head->checksum=0;
 	uint32_t num=0;
-	num+=(sip&0xffff) + sip>>16;
-	num+=(tip&0xffff) + tip>>16;
+	num+=(sip&0xffff) + (sip>>16);
+	num+=(tip&0xffff) + (tip>>16);
 	num+=protocall;
 	num+=len-((v_hs&0xf)<<2);
 	int wlen=len>>1;
 	int wbeg=((v_hs&0xf)<<2)>>1;
-	for(int i=wbeg;i<wlen;i++)
-		num+=ip[i];
+	for(int i=wbeg;i<wlen;i++){
+		num+=ip[i];std::cout<<'?'<<std::hex<<ip[i]<<'?'<<std::endl;
+	}
 	if(len&1)
 		num+=(uint32_t)(len-1)[(uint8_t*)ip]<<8;
-	num=(num&0xffff)+(num>>16);
-	num=(num&0xffff)+(num>>16);
+	while(num>>16)
+		num=(num&0xffff)+(num>>16);
 	head->checksum=~(uint16_t)num;
 	ipv4_eth::validate();
 }

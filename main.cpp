@@ -72,12 +72,12 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 	forward.v_hs=0x45;
 	auto fortcp=forward.get_tcp();
 	fortcp->hs_0=0x50;
-	fortcp->seq=fortcp->seq+datalen;
+	//fortcp->seq=fortcp->seq+datalen;
 	fortcp->flags=0x14; // ack rst
 	forward.validate();
 	//pcap_sendpacket(handle,forward,sizeof _forward);
 	//send_raw_ip(_forward+sizeof(ethernet_packet),40);
-	send_raw_eth(_forward,40+sizeof(ethernet_packet));
+	send_raw_eth(_forward,40+sizeof(ethernet_packet));   fortcp->seq=fortcp->seq+datalen;
 	
 	uint8_t _backward[20+sizeof packet+sizeof redirection];
 	memcpy(_backward,_forward,sizeof _forward);
@@ -106,12 +106,12 @@ void send_tcp_rst(const tcp_ipv4_eth& packet,uint32_t datalen,int flag){ // flag
 }
 
 bool https_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
-	std::cout<<"; https detected"<<std::endl;
+	//std::cout<<"; https detected"<<std::endl;
 	return ~std::string(begin,end).find(forbidden);
 }
 
 bool http_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
-	std::cout<<"; http detected"<<std::endl;
+	//std::cout<<"; http detected"<<std::endl;
 	//for(const uint8_t* it=begin;it!=end;it++)
 	//	std::cout<<(char)*it;
 	//std::cout<<"http end---"<<std::endl;
@@ -121,7 +121,7 @@ bool http_check(const uint8_t* begin,const uint8_t* end){ // get tcp content
 		if(*x++=='\r')return false;
 		if(*(int*)x++==':tso'){ // x->st: *
 			int n=forbidden.size();
-			std::cout<<"!\n"<<x+4;
+			//std::cout<<"!\n"<<x+4;
 			return memcmp(x+4,forbidden.c_str(),n)==0 && x[n+4]=='\r';
 		}
 	}
